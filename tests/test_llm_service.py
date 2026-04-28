@@ -27,13 +27,11 @@ class FakeURLResponse:
         # for contextmanager
         return False
 
-def test_make_ollama_request_needs_classifier_ok(mocker):
+def test_make_llm_request_needs_classifier_ok(mocker):
     spy = mocker.patch('app.services.llm_service.safe_retry', return_value={'answer': 'ok'})
-    response = llm_service.make_ollama_request(
+    response = llm_service.make_llm_request(
         "a user question",
-        "you are a helpful agent answering questions for an e-commerce customer support service",
-        { "type": "object", "properties": [{"name": "foo", "type": "string"}]},
-        needs_extraction=True
+        "classify" 
     )
     (req_arg, schema_arg), _ = spy.call_args
     spy.assert_called_once_with(req_arg, schema_arg)
