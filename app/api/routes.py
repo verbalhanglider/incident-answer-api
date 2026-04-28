@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 import logging
-from typing import Union
 from app.models.requests import LLMRequest, ExtractionRequest
 from app.models.responses import ExtractResponse, HealthResponse, ExtractErrorResponse
 from app.services.llm_service import make_llm_request

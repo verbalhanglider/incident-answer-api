@@ -1,5 +1,4 @@
-from typing import Union
-from typing_extensions import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional
 from pydantic import BaseModel, Field
 
 class ClassificationResponse(BaseModel):
@@ -25,9 +24,8 @@ class ExtractErrorResponse(BaseModel):
     raw: Optional[str] = None
 
 ExtractResponse = Annotated[
-    Union[BillingExtractResponse, ExtractionResponseFromContext, ExtractErrorResponse],
+    BillingExtractResponse | ExtractionResponseFromContext | ExtractErrorResponse,
     Field(discriminator='kind')
-
 ]
 
 class HealthResponse(BaseModel):

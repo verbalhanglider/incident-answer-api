@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Union
-from typing_extensions import Annotated, Literal
+from typing import Annotated, Literal
 
 
 class ClassifyRequest(BaseModel):
@@ -17,6 +16,6 @@ class ContextAnswerRequest(BaseModel):
     text: str
 
 LLMRequest = Annotated[
-    Union[ClassifyRequest, ExtractionRequest, ContextAnswerRequest],
+    ClassifyRequest | ExtractionRequest | ContextAnswerRequest,
     Field(discriminator="task")
 ]
