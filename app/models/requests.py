@@ -13,7 +13,7 @@ class ExtractionRequest(BaseModel):
     text: str
 
 class ContextAnswerRequest(BaseModel):
-    task: Literal["classify"] = "classify"
+    task: Literal["answer_with_context"] = "answer_with_context"
     text: str
 
 LLMRequest = Annotated[
