@@ -3,7 +3,7 @@ import json
 from urllib.request import Request
 from urllib.error import HTTPError
 from jsonschema import validate
-from app.services import llm_service
+from app.services import extract_llm
 
 ERROR_SCHEMA = {
     'type': 'object',
@@ -29,7 +29,7 @@ class FakeURLResponse:
 
 def test_make_llm_request_needs_classifier_ok(mocker):
     spy = mocker.patch('app.services.llm_service.safe_retry', return_value={'answer': 'ok'})
-    response = llm_service.make_llm_request(
+    response = extract_llm.make_llm_request(
         "a user question",
         "classify" 
     )
@@ -53,7 +53,7 @@ def test_safe_retry_ok(mocker):
         }
     }
     spy = mocker.patch('app.services.llm_service.request.urlopen', new=fake_urlopen)
-    output = llm_service.safe_retry(req, schema)
+    output = extract_llm.safe_retry(req, schema)
     assert output == answer['message']['content']
 
 def test_safe_retry_with_http_error(mocker):
