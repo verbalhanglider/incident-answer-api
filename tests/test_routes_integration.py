@@ -10,12 +10,8 @@ def test_health():
     assert response.status_code == 200
     assert response.json() == {"message": "I am alive"}
 
-def test_classify_invalid_payload():
-    response = client.post("/classify", json={})
-    assert response.status_code == 422
-
 def test_extract_invalid_payload():
-    response = client.post("/extract", json={})
+    response = client.post("/llm_request", json={})
     assert response.status_code == 422
 
 def test_extract_billing(monkeypatch):
@@ -26,12 +22,13 @@ def test_extract_billing(monkeypatch):
         if task == "classify":
             return {"intent": "billing"}
         if task == "extract":
-            return {"customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
+            return {"kind": "billing","customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
         if task == "answer_with_context":
-            return {"answer": "I do not know"}
+            return {"kind": "context", "answer": "I do not know"}
     
     monkeypatch.setattr(routes, 'make_llm_request', fake_make_ollama_request)
-    response = client.post("/extract", json={"text": "help me get a refund"})
+    response = client.post("/llm_request", json={"text": "help me get a refund"})
+    print(calls)
     assert response.status_code == 200
     assert calls == [
         ("help me get a refund", "classify"),
@@ -46,13 +43,13 @@ def test_extract_general(monkeypatch):
         if task == "classify":
             return {"intent": "billing"}
         if task == "extract":
-            return {"customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
+            return {"kind": "billing","customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
         if task == "answer_with_context":
-            return {"answer": "I do not know"}
+            return {"kind":"context","answer": "I do not know"}
 
     
     monkeypatch.setattr(routes, 'make_llm_request', fake_make_llm_request)
-    response = client.post("/extract", json={"text": "what is your return policy"})
+    response = client.post("/llm_request", json={"text": "what is your return policy", "task": "answer_with_context"})
     assert response.status_code == 200
     assert calls == [
         ("what is your return policy", "classify"),
@@ -68,7 +65,7 @@ def test_extract_shipping(monkeypatch):
             return {"intent": "shipping"}
     
     monkeypatch.setattr(routes, 'make_llm_request', fake_make_llm_request)
-    response = client.post("/extract", json={"text": "you guys lost my package"})
+    response = client.post("/llm_request", json={"text": "you guys lost my package", "task": "shipping"})
     assert response.status_code == 200
     assert calls == [
         ("you guys lost my package", "classify"),

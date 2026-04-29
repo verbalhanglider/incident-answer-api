@@ -1,7 +1,8 @@
 from typing import Annotated, Literal, Optional
 from pydantic import BaseModel, Field
 
-class ClassificationResponse(BaseModel):
+class ClassificationExtractResponse(BaseModel):
+    kind: Literal["classification"] = "classification"
     intent: str
     confidence_notes: str
     confidence: float
@@ -21,10 +22,15 @@ class ExtractionResponseFromContext(BaseModel):
 class ExtractErrorResponse(BaseModel):
     kind: Literal["error"] = "error"
     error: str
-    raw: Optional[str] = None
+    raw: str | None = None
 
 ExtractResponse = Annotated[
     BillingExtractResponse | ExtractionResponseFromContext | ExtractErrorResponse,
+    Field(discriminator='kind')
+]
+
+classsificationResponse = Annotated[ 
+    ClassificationExtractResponse | ExtractErrorResponse,
     Field(discriminator='kind')
 ]
 
