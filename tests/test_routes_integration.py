@@ -26,12 +26,11 @@ def test_extract_billing(monkeypatch):
         if task == "answer_with_context":
             return {"kind": "context", "answer": "I do not know"}
     
-    monkeypatch.setattr(routes, 'make_llm_request', fake_make_ollama_request)
-    response = client.post("/llm_request", json={"text": "help me get a refund"})
+    monkeypatch.setattr(routes, 'llm_extract_request', fake_make_ollama_request)
+    response = client.post("/llm_request", json={"text": "help me get a refund", "task": "extract"})
     print(calls)
     assert response.status_code == 200
     assert calls == [
-        ("help me get a refund", "classify"),
         ("help me get a refund", "extract")
     ]
 
@@ -48,25 +47,9 @@ def test_extract_general(monkeypatch):
             return {"kind":"context","answer": "I do not know"}
 
     
-    monkeypatch.setattr(routes, 'make_llm_request', fake_make_llm_request)
+    monkeypatch.setattr(routes, 'llm_extract_request', fake_make_llm_request)
     response = client.post("/llm_request", json={"text": "what is your return policy", "task": "answer_with_context"})
     assert response.status_code == 200
     assert calls == [
-        ("what is your return policy", "classify"),
-        ("what is your return policy", "extract")
+        ("what is your return policy", "answer_with_context")
     ]
-
-def test_extract_shipping(monkeypatch):
-    calls = []
-
-    def fake_make_llm_request(text, task, **kwargs):
-        calls.append((text, task))
-        if task == "classify":
-            return {"intent": "shipping"}
-    
-    monkeypatch.setattr(routes, 'make_llm_request', fake_make_llm_request)
-    response = client.post("/llm_request", json={"text": "you guys lost my package", "task": "shipping"})
-    assert response.status_code == 200
-    assert calls == [
-        ("you guys lost my package", "classify"),
-    ] 

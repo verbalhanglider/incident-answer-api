@@ -14,6 +14,7 @@ $ uv run uvicorn app.main:app --reload
 
 ```sh
 $ curl http://127.0.0.1:8000/llm_request -d '{"text": "what hours are you open", "task": "answer_with_context"}' -H 'Content-Type: application/json'
+$ curl http://127.0.0.1:8000/classify -d '{"text": "what hours are you open"}' -H 'Content-Type: application/json'
 ```
 
 ## Tests

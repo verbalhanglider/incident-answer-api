@@ -35,4 +35,8 @@ def llm_classify_request(user_question, retries=0) -> dict:
            "stream": False
     }
     result = call_llm_with_retry(url, payload, llm_prompt_info.llm_output_schema)
+    if "error" in result:
+        result["kind"] = "error"
+    else:
+        result["kind"] = "classification"
     return result

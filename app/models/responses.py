@@ -22,6 +22,7 @@ class ExtractionResponseFromContext(BaseModel):
 class ExtractErrorResponse(BaseModel):
     kind: Literal["error"] = "error"
     error: str
+    status_code: int
     raw: str | None = None
 
 ExtractResponse = Annotated[
@@ -29,7 +30,7 @@ ExtractResponse = Annotated[
     Field(discriminator='kind')
 ]
 
-classsificationResponse = Annotated[ 
+ClasssificationResponse = Annotated[ 
     ClassificationExtractResponse | ExtractErrorResponse,
     Field(discriminator='kind')
 ]

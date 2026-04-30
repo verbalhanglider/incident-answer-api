@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 import logging
-from app.models.requests import LLMRequest, ExtractionRequest, ClassificationRequest
-from app.models.responses import ExtractResponse, HealthResponse, ExtractErrorResponse
+
+from app.models.requests import LLMRequest, ClassificationRequest
+from app.models.responses import ExtractResponse, HealthResponse, ClasssificationResponse
 from app.services.extract_llm import llm_extract_request
 from app.services.classify_llm import llm_classify_request
 
@@ -14,12 +15,10 @@ def llm_request(payload: LLMRequest):
     response = llm_extract_request(payload.text, payload.task)
     return response
 
-@router.post("/classify", response_model="ClassificationResponse")
+@router.post("/classify", response_model=ClasssificationResponse)
 def classify_llm_request(payload: ClassificationRequest):
     logger.info("request received for classification")
     response = llm_classify_request(payload.text)
-    if "error" in response:
-        return ExtractErrorResponse(error=response["error"], raw=response.get("raw"))
     return response
 
 @router.get("/health", response_model=HealthResponse)
