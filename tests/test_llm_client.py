@@ -106,7 +106,6 @@ def test_call_llm_with_retry_invalid_schema(mocker):
     spy = mocker.patch('app.services.llm_client.request.urlopen', new=fake_urlopen)
     mocker.patch('app.services.llm_client.validate_output', return_value=(False, "validation error"))
     response = llm_client.call_llm_with_retry('http://example.com/', {}, schema)
-    print(response)
     assert response['status_code'] == 422
     assert response['error'] == "output from llm did not match expected schema"
     assert response['raw'] == json.dumps(answer['message']['content'])
