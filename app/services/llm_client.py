@@ -6,6 +6,8 @@ from json import JSONDecodeError
 from jsonschema import validate, ValidationError, SchemaError
 from typing import Dict, Any
 
+from ..models.internals import LLMRequestSpec, build_ollama_provider_payload
+
 logger = logging.getLogger(__name__)
 
 def validate_output(data: dict, schema) -> tuple[bool, str | None]:
@@ -19,9 +21,15 @@ def validate_output(data: dict, schema) -> tuple[bool, str | None]:
         logger.exception("Schema error", extra={"error_detail": str(e)})
         return False, str(e)
 
-def call_llm_with_retry(url: str, payload: dict, schema: Dict[str, Any], retries=3) -> dict:
+def _build_requeset_payload(spec: LLMRequestSpec) -> dict[str, Any]:
+    if spec.provider == "ollama":
+        return build_ollama_provider_payload(spec).model_dump()
+    raise ValueError(f"unsupported provider {spec.provider}")
+
+def call_llm_with_retry(spec: LLMRequestSpec, retries=3) -> dict:
+    payload = _build_requeset_payload(spec)
     body = json.dumps(payload).encode('utf-8')
-    req = request.Request(url, body, headers={'Content-Type': 'application/json'}, method="POST")
+    req = request.Request(spec.url, body, headers={'Content-Type': 'application/json'}, method="POST")
     last_result = {
         "status_code": 500,
         "error": "unknown llm failure",
@@ -37,12 +45,12 @@ def call_llm_with_retry(url: str, payload: dict, schema: Dict[str, Any], retries
                 inner = outer['message']['content']
                 if isinstance(inner, str):
                     inner = json.loads(inner)
-                is_valid, error_detail = validate_output(inner, schema)
+                is_valid, error_detail = validate_output(inner, spec.output_schema)
                 if is_valid is True:
                     return inner
                 last_result = {
                     "status_code": 422,
-                    "error": "output from llm did not match expected schema",
+                    "error": error_detail,
                     "raw": json.dumps(inner),
                 }
         except HTTPError as e:

@@ -1,42 +1,36 @@
-
-from copy import deepcopy
-from .schemas import CLASSIFIER_SCHEMA
-from .prompts import INTENT_CLASSIER_SYSTEM_PROMPT, INTENT_CLASSIFIER_PROMPT
-from app.models.internals import BuildLLMPromptAndSchema
+from copy import copy
 import logging
+from typing import Any
 
 from .llm_client import call_llm_with_retry
+from ..models.requests import ClassificationRequest
+from ..models.responses import ClasssificationResponse
+from ..models.internals import LLMRequestSpec
+from .prompts import INTENT_CLASSIFIER_PROMPT, INTENT_CLASSIER_SYSTEM_PROMPT
+from .response_adapters import build_response_adapter
+from .schemas import CLASSIFIER_SCHEMA
+
 
 logger = logging.getLogger(__name__)
 
-def llm_classify_request(user_question, retries=0) -> dict:
-    url = "http://localhost:11434/api/chat"
-    logger.info(f'making request for user question {user_question}')
-    prompt_msg = deepcopy(INTENT_CLASSIFIER_PROMPT)
-    prompt_msg = prompt_msg.replace("FILL_IN_QUESTION", user_question)
-    llm_prompt_info = BuildLLMPromptAndSchema(
-        llm_system_prompt=INTENT_CLASSIER_SYSTEM_PROMPT,
-        llm_output_schema=CLASSIFIER_SCHEMA,
-        llm_prompt=prompt_msg
+def build_classification_spec(payload: ClassificationRequest) -> LLMRequestSpec:
+    response_adapter = build_response_adapter(ClasssificationResponse)
+    return LLMRequestSpec(
+        provider="ollama",
+        url="http://localhost:11434/api/chat",
+        model_name="gemma3",
+        system_prompt=INTENT_CLASSIER_SYSTEM_PROMPT,
+        prompt=copy(INTENT_CLASSIFIER_PROMPT).replace("FILL_IN_QUESTION", payload.text),
+        output_schema=response_adapter.json_schema(),
+        stream=False
     )
-    payload = {
-           "model": "gemma3",
-           "messages": [
-               {
-                   "role": "system",
-                   "content": llm_prompt_info.llm_system_prompt
-               },
-               {
-                   "role": "user",
-                   "content": llm_prompt_info.llm_prompt
-              ,}
-           ],
-           "format": llm_prompt_info.llm_output_schema,
-           "stream": False
-    }
-    result = call_llm_with_retry(url, payload, llm_prompt_info.llm_output_schema)
-    if "error" in result:
-        result["kind"] = "error"
+
+def llm_classify_request(payload: ClassificationRequest) -> dict[str, Any]:
+    spec = build_classification_spec(payload)
+    logger.info(spec.output_schema)
+    response = call_llm_with_retry(spec)
+    if "error" in response:
+        response["kind"] = "error"
     else:
-        result["kind"] = "classification"
-    return result
+        response["kind"] = "classification"
+    return response

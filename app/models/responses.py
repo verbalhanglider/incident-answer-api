@@ -8,13 +8,6 @@ class ClassificationExtractResponse(BaseModel):
     confidence: float
     raw_text: str
 
-class BillingExtractResponse(BaseModel):
-    kind: Literal["billing"] = "billing" 
-    customer: str
-    amount: float
-    issue_type: str
-    summary: str
-
 class ExtractionResponseFromContext(BaseModel):
     kind: Literal["context"] = "context"
     answer: str
@@ -25,8 +18,16 @@ class ExtractErrorResponse(BaseModel):
     status_code: int
     raw: str | None = None
 
+class ExtractValidResponse(BaseModel):
+    kind: Literal["extract"] = "extract"
+    customer: str
+    issue_type: str
+    amount: int
+    issue: str
+    summary: str
+
 ExtractResponse = Annotated[
-    BillingExtractResponse | ExtractionResponseFromContext | ExtractErrorResponse,
+    ExtractErrorResponse | ExtractValidResponse, 
     Field(discriminator='kind')
 ]
 
@@ -34,6 +35,15 @@ ClasssificationResponse = Annotated[
     ClassificationExtractResponse | ExtractErrorResponse,
     Field(discriminator='kind')
 ]
+
+class ContextResponse(BaseModel):
+    kind: Literal["context"] = "context"
+    answer: str
+
+ContextAnswerResponse = Annotated[
+    ContextResponse | ExtractErrorResponse,
+    Field(discriminator='kind')
+    ]
 
 class HealthResponse(BaseModel):
     message: str

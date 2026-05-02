@@ -2,6 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.api import routes
+from app.models.requests import ExtractionRequest, ClassificationRequest, ContextAnswerRequest
+from app.models.internals import LLMRequestSpec
+from app.services.response_adapters import CONTEXT_ANSWER_RESPONSE_ADAPTER, CLASSIFICATION_RESPONSE_ADAPTER, EXTRACT_RESPONSE_ADAPTER
 
 client = TestClient(app)
 
@@ -11,45 +14,59 @@ def test_health():
     assert response.json() == {"message": "I am alive"}
 
 def test_extract_invalid_payload():
-    response = client.post("/llm_request", json={})
+    response = client.post("/extract", json={})
     assert response.status_code == 422
+    print(response.json())
+    assert 1 == 2
 
-def test_extract_billing(monkeypatch):
+def test_answer_with_context_ok(monkeypatch):
     calls = []
 
-    def fake_make_ollama_request(text, task, **kwargs):
-        calls.append((text, task))
-        if task == "classify":
-            return {"intent": "billing"}
-        if task == "extract":
-            return {"kind": "billing","customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
-        if task == "answer_with_context":
-            return {"kind": "context", "answer": "I do not know"}
+    def fake_llm_answer_from_contextt(text):
+        calls.append(text)
+        return {"kind": "context", "answer": "I do not know"}
     
-    monkeypatch.setattr(routes, 'llm_extract_request', fake_make_ollama_request)
-    response = client.post("/llm_request", json={"text": "help me get a refund", "task": "extract"})
-    print(calls)
+    monkeypatch.setattr(routes, 'llm_answer_from_context', fake_llm_answer_from_contextt)
+    payload = {"text": "help me get a refund"} 
+    response = client.post("/answer/context", json=payload)
     assert response.status_code == 200
-    assert calls == [
-        ("help me get a refund", "extract")
-    ]
+    assert response.json()['answer'] == 'I do not know'
+    assert calls == [ContextAnswerRequest(**payload)]
 
-def test_extract_general(monkeypatch):
+
+def test_extract(monkeypatch):
     calls = []
 
-    def fake_make_llm_request(text, task, **kwargs):
-        calls.append((text, task))
-        if task == "classify":
-            return {"intent": "billing"}
-        if task == "extract":
-            return {"kind": "billing","customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
-        if task == "answer_with_context":
-            return {"kind":"context","answer": "I do not know"}
+    def fake_llm_extract_request(text, **kwargs):
+        calls.append(text)
+        return {"kind": "extract", "issue":"billing", "customer": "john doe", "amount": 200, "issue_type": "refund", "summary": "some note"}
 
-    
-    monkeypatch.setattr(routes, 'llm_extract_request', fake_make_llm_request)
-    response = client.post("/llm_request", json={"text": "what is your return policy", "task": "answer_with_context"})
+    monkeypatch.setattr(routes, 'llm_extract_request', fake_llm_extract_request)
+    payload = {"text": "what is your return policy"}
+    response = client.post("/extract", json=payload)
+    json_response = response.json()
     assert response.status_code == 200
-    assert calls == [
-        ("what is your return policy", "answer_with_context")
-    ]
+    assert json_response['issue'] == 'billing'
+    assert json_response['customer'] == 'john doe'
+    assert json_response['amount'] == 200
+    assert json_response['issue_type'] == 'refund'
+    assert json_response['summary'] == 'some note'  
+    assert calls == [ExtractionRequest(**payload)]
+
+def test_classify(monkeypatch):
+    calls = []
+
+    def fake_llm_classify_request(fake_request, **kwargs):
+        calls.append(fake_request)
+        return {"kind": "classification", "intent": "get_refund", "confidence": 0.95, "confidence_notes": "the user is asking about a refund", "raw_text":  fake_request.text}
+
+    monkeypatch.setattr(routes, 'llm_classify_request', fake_llm_classify_request)
+    payload = {"text": "what is your return policy"}
+    response = client.post("/classify", json=payload)
+    json_response = response.json()
+    assert response.status_code == 200
+    assert json_response['intent'] == 'get_refund'
+    assert json_response['confidence'] == 0.95
+    assert json_response['confidence_notes'] == 'the user is asking about a refund'
+    assert json_response['raw_text'] == payload['text']
+    assert calls == [ClassificationRequest(**payload)]

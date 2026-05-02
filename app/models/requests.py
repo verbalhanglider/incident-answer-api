@@ -1,18 +1,15 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Annotated, Literal
 
 class ExtractionRequest(BaseModel):
-    task: Literal["extract"] = "extract"
+    model_config = ConfigDict(extra="forbid")
+    text: str
+
+class ClassificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     text: str
 
 class ContextAnswerRequest(BaseModel):
-    task: Literal["answer_with_context"] = "answer_with_context"
+    model_config = ConfigDict(extra="forbid")
     text: str
-
-LLMRequest = Annotated[
-    ExtractionRequest | ContextAnswerRequest,
-    Field(discriminator="task")
-]
-
-class ClassificationRequest(BaseModel):
-    text: str
+    context: str | None = None
