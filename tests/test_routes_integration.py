@@ -16,8 +16,6 @@ def test_health():
 def test_extract_invalid_payload():
     response = client.post("/extract", json={})
     assert response.status_code == 422
-    print(response.json())
-    assert 1 == 2
 
 def test_answer_with_context_ok(monkeypatch):
     calls = []

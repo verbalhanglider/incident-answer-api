@@ -1,9 +1,18 @@
+import pytest
 import json
 from urllib.request import Request 
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from unittest.mock import Mock
 from app.services import llm_client
 from app.models.internals import LLMRequestSpec
+from app.models.errors import (
+     InternalSchemaConfigurationException,
+     ServiceRequestValidationException,
+     UpstreamServiceInvalidResponseException,
+     InternalSchemaConfigurationException,
+     UpstreamServiceHttpException,
+     AppException
+)
 
 class FakeURLResponse:
     def __init__(self, body):
@@ -63,9 +72,29 @@ def test_call_llm_with_retry_http_error(mocker):
         }
     )
     spy = mocker.patch('app.services.llm_client.request.urlopen', side_effect=fake_urlopen)
-    response = llm_client.call_llm_with_retry(spec)
-    assert response['status_code'] == 500
-    assert spy.call_count == 4
+    with pytest.raises(UpstreamServiceHttpException):
+        llm_client.call_llm_with_retry(spec)
+
+def test_call_llm_with_retry_http_error(mocker):
+    def fake_urlopen(req):
+        raise URLError(reason="invalid url")
+
+    spec = LLMRequestSpec(
+        model_name="gemma3",
+        system_prompt="Test system prompt",
+        prompt="Test prompt for LLLM request",
+        provider="ollama",
+        url="http://example.com/",
+        output_schema={
+            "type": "object",
+            "properties": {
+                "result": {"type": "string"}
+            }
+        }
+    )
+    spy = mocker.patch('app.services.llm_client.request.urlopen', side_effect=fake_urlopen)
+    with pytest.raises(UpstreamServiceInvalidResponseException):
+        llm_client.call_llm_with_retry(spec)
 
 def test_call_llm_with_retry_invalid_json(mocker):
     fake_response = Mock()
@@ -85,11 +114,9 @@ def test_call_llm_with_retry_invalid_json(mocker):
             }
         }
     )
-    response = llm_client.call_llm_with_retry(spec)
-    assert response['status_code'] == 502
-    assert response['error'] == "invalid json from llm service"
-    assert response['raw'] == 'invalid json'
-    assert mock_urlopen.call_count == 4
+    with pytest.raises(UpstreamServiceInvalidResponseException):
+        llm_client.call_llm_with_retry(spec)
+
 
 def test_call_llm_with_retry_invalid_schema(mocker):
     answer = {"message": {"content": {"result": "hello my name is"}}}
@@ -101,16 +128,12 @@ def test_call_llm_with_retry_invalid_schema(mocker):
         prompt="Test prompt for LLLM request",
         provider="ollama",
         url="http://example.com/",
-        output_schema={
-            "type": "object",
-            "properties": {
-                "result": {"type": "string"}
-            }
-        }
+        output_schema={}
     )
     spy = mocker.patch('app.services.llm_client.request.urlopen', new=fake_urlopen)
-    mocker.patch('app.services.llm_client.validate_output', return_value=(False, "validation error"))
-    response = llm_client.call_llm_with_retry(spec)
-    assert response['status_code'] == 422
-    assert response['error'] == "validation error"
-    assert response['raw'] == json.dumps(answer['message']['content'])
+    mocker.patch(
+        "app.services.llm_client.validate_output",
+        side_effect=InternalSchemaConfigurationException("invalid schema"),
+    )
+    with pytest.raises(InternalSchemaConfigurationException, match="invalid schema"):
+        llm_client.call_llm_with_retry(spec)
