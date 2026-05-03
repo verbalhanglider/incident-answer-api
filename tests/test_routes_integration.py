@@ -6,12 +6,12 @@ from app.models.requests import ExtractionRequest, ClassificationRequest, Contex
 client = TestClient(app)
 
 def test_health():
-    response = client.get("/health")
+    response = client.get("/sre_api/health")
     assert response.status_code == 200
     assert response.json() == {"message": "I am alive"}
 
 def test_extract_invalid_payload():
-    response = client.post("/extract", json={})
+    response = client.post("/sre_api/extract", json={})
     assert response.status_code == 422
 
 def test_answer_with_context_ok(monkeypatch):
@@ -23,7 +23,7 @@ def test_answer_with_context_ok(monkeypatch):
     
     monkeypatch.setattr(routes, 'llm_answer_from_context', fake_llm_answer_from_contextt)
     payload = {"text": "help me get a refund"} 
-    response = client.post("/answer/context", json=payload)
+    response = client.post("/sre_api/answer/context", json=payload)
     assert response.status_code == 200
     assert response.json()['answer'] == 'I do not know'
     assert calls == [ContextAnswerRequest(**payload)]
@@ -38,7 +38,7 @@ def test_extract(monkeypatch):
 
     monkeypatch.setattr(routes, 'llm_extract_request', fake_llm_extract_request)
     payload = {"text": "what is your return policy"}
-    response = client.post("/extract", json=payload)
+    response = client.post("/sre_api/extract", json=payload)
     json_response = response.json()
     assert response.status_code == 200
     assert json_response['issue'] == 'billing'
@@ -57,7 +57,7 @@ def test_classify(monkeypatch):
 
     monkeypatch.setattr(routes, 'llm_classify_request', fake_llm_classify_request)
     payload = {"text": "what is your return policy"}
-    response = client.post("/classify", json=payload)
+    response = client.post("/sre_api/classify", json=payload)
     json_response = response.json()
     assert response.status_code == 200
     assert json_response['intent'] == 'get_refund'
