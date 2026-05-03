@@ -1,60 +1,98 @@
 import json
 import logging
 from urllib import request
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from json import JSONDecodeError
 from jsonschema import validate, ValidationError, SchemaError
 from typing import Dict, Any
 
 from ..models.internals import LLMRequestSpec, build_ollama_provider_payload
+from ..models.errors import (
+     InternalSchemaConfigurationException,
+     ServiceRequestValidationException,
+     UpstreamServiceInvalidResponseException,
+     InternalSchemaConfigurationException,
+     UpstreamServiceHttpException,
+     AppException
+)
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger('app.appid123.llm_client')
 
-def validate_output(data: dict, schema) -> tuple[bool, str | None]:
+logger = logging.getLogger('__name__')
+
+def validate_output(data: dict, schema):
     try:
         validate(instance=data, schema=schema)
-        return True, None
     except ValidationError as e:
-        logger.exception("Validation error", extra={"error_detail": str(e)})
-        return False, str(e)
+        logger.warning("Validation error", extra={"error_detail": str(e)})
+        raise ServiceRequestValidationException(
+            message="LLM output did not match expected schema",
+            details={
+                "reason": e.message,
+                "schema": e.schema
+            }
+        )
     except SchemaError as e:
-        logger.exception("Schema error", extra={"error_detail": str(e)})
-        return False, str(e)
+        logger.exception(f"LLM received invalid schema", extra={"error_detail": e.message, "schema": e.schema})
+        raise InternalSchemaConfigurationException(
+            message="Invalid JSON schema configuration",
+            details={"reason": e.message}
+        )
 
-def _build_requeset_payload(spec: LLMRequestSpec) -> dict[str, Any]:
+def _build_request_payload(spec: LLMRequestSpec) -> dict[str, Any]:
     if spec.provider == "ollama":
         return build_ollama_provider_payload(spec).model_dump()
     raise ValueError(f"unsupported provider {spec.provider}")
 
+def _extract_output(body: dict):
+    return body['message']['content']
+
 def call_llm_with_retry(spec: LLMRequestSpec, retries=3) -> dict:
-    payload = _build_requeset_payload(spec)
+
+    payload = _build_request_payload(spec)
     body = json.dumps(payload).encode('utf-8')
     req = request.Request(spec.url, body, headers={'Content-Type': 'application/json'}, method="POST")
-    last_result = {
-        "status_code": 500,
-        "error": "unknown llm failure",
-        "raw": None,
-    }
-    body = None
+    last_exc: Exception | None = None
+    raw_body = None
     for count in range(retries+1):
-        logger.info(f'safe retry {count}')
         try:
+            logger.info(f"{req.method} {req.get_full_url()} with retry {count}")
             with request.urlopen(req) as response:
-                body = response.read().decode('utf-8')
-                outer = json.loads(body)
-                inner = outer['message']['content']
+                raw_body = response.read().decode('utf-8')
+                outer = json.loads(raw_body)
+                inner = _extract_output(outer)
                 if isinstance(inner, str):
                     inner = json.loads(inner)
-                is_valid, error_detail = validate_output(inner, spec.output_schema)
-                if is_valid is True:
-                    return inner
-                last_result = {
-                    "status_code": 422,
-                    "error": error_detail,
-                    "raw": json.dumps(inner),
-                }
+                validate_output(inner, spec.output_schema)
+                return inner
+        except KeyError as e:
+            last_exc = e 
+            logger.warning(f"llm service sent invalid response: missing field ${str(e)}")
         except HTTPError as e:
-            last_result = {"error": str(e.reason), "status_code": e.code, "raw": body}
+            last_exc = e
+            logger.warning(f"llm service experience HTTPError {str(e)}")
+        except URLError as e:
+            last_exc = e
+            logger.warning(f"llm service experience network failure {str(e)}")
         except JSONDecodeError as e:
-            last_result = {"error": "invalid json from llm service", "status_code": 502, "raw": body}
-    return last_result
+            last_exc = e
+            logger.warning(f"llm service sent invalid JSON: {str(e)}")
+    if isinstance(last_exc, KeyError):
+        raise UpstreamServiceInvalidResponseException(message="LLM Service experience an http exception",
+                                                      details=str(str(last_exc))
+                                                     )
+    if isinstance(last_exc, HTTPError):
+        raise UpstreamServiceHttpException(message="LLM Service experience an http exception",
+                                          details=str(last_exc.reason)
+                                          )
+    if isinstance(last_exc, URLError):
+        raise UpstreamServiceInvalidResponseException(details=str(last_exc.reason),
+                                                      message="LLM Service experienced network failure" 
+                                                     )
+    if isinstance(last_exc, JSONDecodeError):
+        raise UpstreamServiceInvalidResponseException(details=str(last_exc.msg),
+                                                      message="LLM Service returned invalid JSON"
+                                                     )
+    if last_exc is not None:
+        raise AppException("LLM call failed", details={"raw": raw_body}) from last_exc
+    raise AppException("LLM call failed with unknown error")

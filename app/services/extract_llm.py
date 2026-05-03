@@ -29,7 +29,6 @@ def llm_extract_request(payload: ExtractionRequest) -> dict[str, Any]:
     logger.info(f'making request for user question {payload.text}')
     spec = build_extraction_request_spec(payload)
     response = call_llm_with_retry(spec)
-    logger.info(response)
     if "error" in response:
         response["kind"] = "error"
     else:

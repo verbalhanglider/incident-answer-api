@@ -22,7 +22,6 @@ def llm_request(payload: ExtractionRequest) -> ExtractResponse:
 def classify_llm_request(payload: ClassificationRequest) -> ClasssificationResponse:
     logger.info("request received for classification")
     response = llm_classify_request(payload)
-    print(response)
     return CLASSIFICATION_RESPONSE_ADAPTER.validate_python(response)
 
 @router.post('/answer/context', response_model=ContextAnswerResponse)
