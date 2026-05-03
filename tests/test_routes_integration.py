@@ -1,10 +1,7 @@
-import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.api import routes
 from app.models.requests import ExtractionRequest, ClassificationRequest, ContextAnswerRequest
-from app.models.internals import LLMRequestSpec
-from app.services.response_adapters import CONTEXT_ANSWER_RESPONSE_ADAPTER, CLASSIFICATION_RESPONSE_ADAPTER, EXTRACT_RESPONSE_ADAPTER
 
 client = TestClient(app)
 

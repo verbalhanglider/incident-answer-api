@@ -4,7 +4,7 @@ from urllib.request import Request
 from urllib.error import HTTPError, URLError
 from unittest.mock import Mock
 from app.services import llm_client
-from app.models.internals import LLMRequestSpec
+from app.services.providers.base import LLMRequestSpec, LLMProvider
 from app.models.errors import (
      InternalSchemaConfigurationException,
      ServiceRequestValidationException,
@@ -36,7 +36,7 @@ def test_call_llm_with_retry_ok(mocker):
         model_name="gemma3",
         system_prompt="Test system prompt",
         prompt="Test prompt for LLLM request",
-        provider="ollama",
+        provider=LLMProvider.OLLAMA,
         url="http://example.com/",
         output_schema={
             "type": "object",
@@ -62,7 +62,7 @@ def test_call_llm_with_retry_http_error(mocker):
         model_name="gemma3",
         system_prompt="Test system prompt",
         prompt="Test prompt for LLLM request",
-        provider="ollama",
+        provider=LLMProvider.OLLAMA,
         url="http://example.com/",
         output_schema={
             "type": "object",
@@ -83,7 +83,7 @@ def test_call_llm_with_retry_http_error(mocker):
         model_name="gemma3",
         system_prompt="Test system prompt",
         prompt="Test prompt for LLLM request",
-        provider="ollama",
+        provider=LLMProvider.OLLAMA,
         url="http://example.com/",
         output_schema={
             "type": "object",
@@ -126,7 +126,7 @@ def test_call_llm_with_retry_invalid_schema(mocker):
         model_name="gemma3",
         system_prompt="Test system prompt",
         prompt="Test prompt for LLLM request",
-        provider="ollama",
+        provider=LLMProvider.OLLAMA,
         url="http://example.com/",
         output_schema={}
     )

@@ -1,36 +1,38 @@
-from copy import deepcopy
 import logging
 from typing_extensions import Any
-from pydantic import TypeAdapter
+from pydantic import BaseModel
 
-from .prompts import EXTRACTOR_SYSTEM_PROMPT
-from .response_adapters import build_response_adapter
-from .schemas import EXTRACTION_SCHEMA
-from app.models.internals import LLMRequestSpec
-from app.models.requests import ExtractionRequest
-from app.models.responses import ExtractResponse
-from app.services.llm_client import call_llm_with_retry
-from app.services.response_adapters import EXTRACT_RESPONSE_ADAPTER
+from .llm_client import call_llm_with_retry
+from .llm_spec_factory import build_llm_request_spec
+from .providers.base import LLMRequestSpec
+from ..models.requests import ExtractionRequest
+from ..models.responses import ExtractResponse
+from .response_adapters import EXTRACT_RESPONSE_ADAPTER
 
 logger = logging.getLogger(__name__)
 
-def build_extraction_request_spec(payload: ExtractionRequest) -> LLMRequestSpec:
-    return LLMRequestSpec(
-        provider="ollama",
-        url="http://localhost:11434/api/chat",
-        model_name="gemma3",
-        system_prompt=EXTRACTOR_SYSTEM_PROMPT,
-        prompt=payload.text,
-        output_schema=EXTRACT_RESPONSE_ADAPTER.json_schema(),
-        stream=False
-    )
+class EXTRACTION_PROMPT_INPUT(BaseModel):
+    text: str
 
-def llm_extract_request(payload: ExtractionRequest) -> dict[str, Any]:
-    logger.info(f'making request for user question {payload.text}')
+def build_system_prompt(_: EXTRACTION_PROMPT_INPUT) -> str:
+    return \
+    """
+   You are a helpful assistant that only returns a valid JSON object. 
+
+    Rules: 
+    - Do not include any commentary or extra text outside the JSON. 
+    - The JSON must conform to the provided schema." 
+    """
+
+def build_content_prompt(payload: EXTRACTION_PROMPT_INPUT):
+    return payload.text 
+
+def build_extraction_request_spec(payload: ExtractionRequest) -> LLMRequestSpec:
+    prompt_input = EXTRACTION_PROMPT_INPUT(text=payload.text)
+    return build_llm_request_spec(prompt_input, EXTRACT_RESPONSE_ADAPTER, build_system_prompt, build_content_prompt)
+
+def llm_extract_request(payload: ExtractionRequest) -> ExtractResponse:
     spec = build_extraction_request_spec(payload)
-    response = call_llm_with_retry(spec)
-    if "error" in response:
-        response["kind"] = "error"
-    else:
-        response["kind"] = "extract"
+    raw_response = call_llm_with_retry(spec)
+    response = EXTRACT_RESPONSE_ADAPTER.validate_python(raw_response)
     return response

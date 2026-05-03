@@ -6,7 +6,10 @@ from json import JSONDecodeError
 from jsonschema import validate, ValidationError, SchemaError
 from typing import Dict, Any
 
-from ..models.internals import LLMRequestSpec, build_ollama_provider_payload
+
+
+from .providers.base import LLMRequestSpec
+from .providers.registry import PROVIDER_REGISTRY
 from ..models.errors import (
      InternalSchemaConfigurationException,
      ServiceRequestValidationException,
@@ -16,9 +19,8 @@ from ..models.errors import (
      AppException
 )
 
-# logger = logging.getLogger('app.appid123.llm_client')
 
-logger = logging.getLogger('__name__')
+logger = logging.getLogger(__name__)
 
 def validate_output(data: dict, schema):
     try:
@@ -39,17 +41,11 @@ def validate_output(data: dict, schema):
             details={"reason": e.message}
         )
 
-def _build_request_payload(spec: LLMRequestSpec) -> dict[str, Any]:
-    if spec.provider == "ollama":
-        return build_ollama_provider_payload(spec).model_dump()
-    raise ValueError(f"unsupported provider {spec.provider}")
-
-def _extract_output(body: dict):
-    return body['message']['content']
-
 def call_llm_with_retry(spec: LLMRequestSpec, retries=3) -> dict:
-
-    payload = _build_request_payload(spec)
+    adapter = PROVIDER_REGISTRY.get(spec.provider)
+    if not adapter:
+        raise ValueError(f"unsupported provider {spec.provider}")
+    payload = adapter.build_payload(spec)
     body = json.dumps(payload).encode('utf-8')
     req = request.Request(spec.url, body, headers={'Content-Type': 'application/json'}, method="POST")
     last_exc: Exception | None = None
@@ -60,7 +56,7 @@ def call_llm_with_retry(spec: LLMRequestSpec, retries=3) -> dict:
             with request.urlopen(req) as response:
                 raw_body = response.read().decode('utf-8')
                 outer = json.loads(raw_body)
-                inner = _extract_output(outer)
+                inner = adapter.extract_response(outer)
                 if isinstance(inner, str):
                     inner = json.loads(inner)
                 validate_output(inner, spec.output_schema)
