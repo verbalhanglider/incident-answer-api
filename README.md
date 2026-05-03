@@ -7,7 +7,7 @@ $ ollama run gemma3
 $ git clone <repo name>
 $ cd <repo name>
 $ uv sync --locked
-$ uv run uvicorn app.main:app --reload
+$ uv run uvicorn app.main:app --reload --log-config uvicorn_logging_config.json
 ```
 
 ## Local Live Test
