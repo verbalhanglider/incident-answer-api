@@ -67,7 +67,6 @@ def call_llm_with_retry(spec: LLMRequestSpec, retries=3) -> dict:
         try: 
             raw_body = do_http_call(payload, spec.url)
             output = adapter.extract_response(raw_body)
-            logger.info("output=%r type=%s schema=%r", output, type(output), spec.output_schema)
             validate_output(output, spec.output_schema)
             return  output
         except ServiceRequestValidationException as e:
