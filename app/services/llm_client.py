@@ -9,7 +9,7 @@ from typing import Dict, Any
 
 
 from .providers.base import LLMRequestSpec
-from .providers.registry import PROVIDER_REGISTRY
+from .providers.provider_registry import PROVIDER_REGISTRY
 from ..models.errors import (
      InternalSchemaConfigurationException,
      ServiceRequestValidationException,
