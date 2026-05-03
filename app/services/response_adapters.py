@@ -3,6 +3,7 @@ from pydantic import TypeAdapter
 from typing import Any
 
 from ..models.responses import ExtractResponse, ContextAnswerResponse, ClassificationResponse
+
 def build_response_adapter(response_type: Any) -> TypeAdapter:
     return TypeAdapter(response_type)
 

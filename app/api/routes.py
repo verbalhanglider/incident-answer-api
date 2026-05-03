@@ -9,7 +9,7 @@ from ..models.responses import ExtractResponse, HealthResponse, ClassificationRe
 
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/sre_api")
 
 @router.post("/extract", response_model=ExtractResponse)
 def llm_request(payload: ExtractionRequest) -> ExtractResponse:

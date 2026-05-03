@@ -4,7 +4,7 @@ from urllib import request
 from urllib.error import HTTPError, URLError
 from json import JSONDecodeError
 from jsonschema import validate, ValidationError, SchemaError
-from typing import Dict, Any
+from typing import Any
 
 
 
@@ -17,7 +17,6 @@ from ..models.errors import (
      InternalSchemaConfigurationException,
      UpstreamServiceHttpException,
      AppException,
-     UnsupportedLLMProviderException
 )
 
 
@@ -64,30 +63,28 @@ def call_llm_with_retry(spec: LLMRequestSpec, retries=3) -> dict:
     payload = adapter.build_payload(spec)
     raw_body = None
     last_exc: Exception | None = None
-    for attempt in range(retries):
+    for attempt in range(1, retries):
         try: 
             raw_body = do_http_call(payload, spec.url)
             output = adapter.extract_response(raw_body)
-            print(output)
-            print(spec.output_schema)
             logger.info("output=%r type=%s schema=%r", output, type(output), spec.output_schema)
             validate_output(output, spec.output_schema)
             return  output
         except ServiceRequestValidationException as e:
             last_exc = e
-            logger.warning(f"llm service sent invalid response ${str(e)} on {attempt+1}")
+            logger.warning(f"llm service sent invalid response ${str(e)} on {attempt}")
         except KeyError as e:
             last_exc = e 
-            logger.warning(f"llm service sent invalid response: missing field ${str(e)} on attempt {attempt+1}")
+            logger.warning(f"llm service sent invalid response: missing field ${str(e)} on attempt {attempt}")
         except HTTPError as e:
             last_exc = e
-            logger.warning(f"llm service experience HTTPError {str(e)} on attempt {attempt+1}")
+            logger.warning(f"llm service experience HTTPError {str(e)} on attempt {attempt}")
         except URLError as e:
             last_exc = e
-            logger.warning(f"llm service experience network failure {str(e)} on {attempt+1}")
+            logger.warning(f"llm service experience network failure {str(e)} on {attempt}")
         except JSONDecodeError as e:
             last_exc = e
-            logger.warning(f"llm service sent invalid JSON: {str(e)} on {attempt+1}")
+            logger.warning(f"llm service sent invalid JSON: {str(e)} on {attempt}")
     if isinstance(last_exc, KeyError):
         raise UpstreamServiceInvalidResponseException(message="LLM Service sent invalid response",
                                                       details=str(str(last_exc))
