@@ -36,3 +36,8 @@ class InternalSchemaConfigurationException(AppException):
     status_code = 500
     error_type = "internal_schema_configuration"
     error_code = "INVALID_SCHEMA_CONFIGURATION"
+
+class UnsupportedLLMProviderException(AppException):
+    status_code = 500
+    error_type = "internal_provider_configuration"
+    error_code = "MISSING_PROVIDER_CONFIGURATION"

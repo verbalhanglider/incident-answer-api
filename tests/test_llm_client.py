@@ -28,7 +28,7 @@ class FakeURLResponse:
         return False
 
 def test_call_llm_with_retry_ok(mocker):
-    answer = {"message": {"content": {"result": "hello my name is"}}}
+    answer = {"message": {"content": '{"result": "hello my name is"}'}}
     def fake_urlopen(req):
         return FakeURLResponse(json.dumps(answer).encode('ascii'))
 
@@ -47,7 +47,7 @@ def test_call_llm_with_retry_ok(mocker):
     )
     spy = mocker.patch('app.services.llm_client.request.urlopen', new=fake_urlopen)
     output = llm_client.call_llm_with_retry(spec)
-    assert output == answer['message']['content']
+    assert output == json.loads(answer['message']['content'])
 
 def test_call_llm_with_retry_http_error(mocker):
     def fake_urlopen(req):
@@ -75,7 +75,7 @@ def test_call_llm_with_retry_http_error(mocker):
     with pytest.raises(UpstreamServiceHttpException):
         llm_client.call_llm_with_retry(spec)
 
-def test_call_llm_with_retry_http_error(mocker):
+def test_call_llm_with_retry_url_error(mocker):
     def fake_urlopen(req):
         raise URLError(reason="invalid url")
 
@@ -105,7 +105,7 @@ def test_call_llm_with_retry_invalid_json(mocker):
         model_name="gemma3",
         system_prompt="Test system prompt",
         prompt="Test prompt for LLLM request",
-        provider="ollama",
+        provider=LLMProvider.OLLAMA,
         url="http://example.com/",
         output_schema={
             "type": "object",
@@ -119,7 +119,7 @@ def test_call_llm_with_retry_invalid_json(mocker):
 
 
 def test_call_llm_with_retry_invalid_schema(mocker):
-    answer = {"message": {"content": {"result": "hello my name is"}}}
+    answer = {"message": {"content": '{"result": "hello my name is"}'}}
     def fake_urlopen(req):
         return FakeURLResponse(json.dumps(answer).encode('ascii'))
     spec = LLMRequestSpec(

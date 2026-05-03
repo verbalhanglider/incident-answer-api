@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Any
+import json
 
 from .base import LLMRequestSpec
 
@@ -28,4 +29,4 @@ class OllamaAdapter:
 
     @staticmethod
     def extract_response(raw_response: dict) -> Any:
-        return raw_response['message']['content']
+        return json.loads(raw_response['message']['content'])
