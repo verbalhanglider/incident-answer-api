@@ -1,0 +1,27 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  llm-incident-answer-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-incident-answer-api
+    image: llm-incident-answer-api
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_URL=http://ollama:11434
+      - LLM_MODEL_NAME=smollm
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
