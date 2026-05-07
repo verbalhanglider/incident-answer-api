@@ -41,9 +41,10 @@ def validate_output(data: dict, schema):
             details={"reason": e.message}
         )
 
-def do_http_call(body: dict[str, Any], url: str) -> dict[str, Any]:
+def do_http_call(body: dict[str, Any], url: str | None) -> dict[str, Any]:
+    logger.info(url)
     req = request.Request(
-                          url,
+                          f"{url}/api/chat",
                           json.dumps(body).encode('utf-8'),
                           headers={'Content-Type': 'application/json'},
                           method="POST"

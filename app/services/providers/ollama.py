@@ -9,7 +9,7 @@ class OllamaMessage(BaseModel):
     content: str
 
 class OllamaChatPayload(BaseModel):
-    model: str
+    model: str | None
     messages: list[OllamaMessage]
     format: dict[str, Any]
     stream: bool = False

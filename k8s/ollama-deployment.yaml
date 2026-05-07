@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      volumes:
+      - name: ollama-data
+        emptyDir: {}  # later this becomes a PVC
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        command: ["/bin/bash", "-c"]
+        args:
+            - |
+              set -e
+              apt-get update && apt-get install -y curl
+              echo "Starting ollama serve..."
+              ollama serve &
+
+              echo "Waiting for Ollama server to be ready..."
+              # Wait until the API responds on localhost
+              until curl -sSf http://localhost:11434/api/tags > /dev/null; do
+                echo "Ollama not ready yet, sleeping..."
+                sleep 2
+              done
+
+              echo "Ollama is ready, pulling smollm..."
+              ollama pull smollm
+
+              echo "Model pull complete, keeping server running..."
+              wait
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0:11434"
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama

@@ -9,8 +9,8 @@ class LLMProvider(StrEnum):
 class LLMRequestSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: LLMProvider
-    url: str
-    model_name: str
+    url: str | None
+    model_name: str | None
     system_prompt: str
     prompt: str
     output_schema: dict[str, Any]

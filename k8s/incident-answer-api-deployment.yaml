@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-incident-answer-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-incident-answer-api
+  template:
+    metadata:
+      labels:
+        app: llm-incident-answer-api
+    spec:
+      containers:
+      - name: incident-answer-api
+        image: llm-incident-answer-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: LLM_URL
+          value: http://ollama:11434
+        - name: LLM_MODEL_NAME
+          value: smollm
